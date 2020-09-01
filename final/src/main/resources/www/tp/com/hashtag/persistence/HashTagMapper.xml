@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="www.tp.com.hashtag.persistence.HashTagMapper">
+	<resultMap id="hashTagMap"
+		type="www.tp.com.hashtag.model.HashTagVO">
+		<id property="id" column="tag_id" />
+		<result property="name" column="tag_name" />
+		<result property="area" column="area" />
+		
+	</resultMap>
+
+	
+	<select id="findExists" resultMap="hashTagMap">
+		SELECT *
+		  FROM tbl_hash_tag
+		 WHERE tag_name in
+		<foreach item="item" index="index" collection="list" open="(" separator="," close=")">
+			#{item.name}
+		</foreach>
+	</select>
+	<select id="findExistsByArea" resultMap="hashTagMap">
+		select * from tbl_hash_tag
+		where tag_name = #{area}
+	</select>
+
+	<insert id="insertHashTag">
+		<selectKey keyProperty="hashTag.id" order="BEFORE" resultType="int">
+          <![CDATA[
+            select seq_hash_tag.nextval from dual
+      	  ]]>
+		</selectKey>
+		insert into tbl_hash_tag (tag_id, tag_name)
+			values(#{hashTag.id}, #{hashTag.name})
+	</insert>
+	
+	<insert id="insertMapBetweenReply">
+		insert into tbl_map_proj_tag (proj_id, tag_id,tag_type)
+			values(#{hierId}, #{hashTag.id},#{type})
+	</insert>
+	
+	<delete id = "deleteMapBetweenProject">
+	    delete from tbl_map_proj_tag
+	     where proj_id like #{reply.hierId} || '%'
+	</delete>
+	
+	<delete id = "deleteMapBetweenReply">
+	    delete from tbl_map_proj_tag m
+	     where m.proj_id = #{hierId}
+	</delete>
+	
+</mapper>

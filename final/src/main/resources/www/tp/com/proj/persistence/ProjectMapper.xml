@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="www.tp.com.proj.persistence.ProjectMapper">
+
+	<resultMap id="replyResultMap"	type="www.tp.com.proj.model.ReplyVO">
+		<constructor>
+			<idArg column="hier_id" javaType="String" />
+		</constructor>
+<!-- 		<result property="clsType" column="obj_type" /> -->
+		<result property="content" column="content" />
+		<association property="writerId" resultMap="www.tp.com.party.persistence.PartyMapper.partyResultMap"/> 
+		<discriminator javaType="java.lang.Character" column="obj_type">
+			<case value="P" resultMap="projectResultMap" />
+<!-- 			<case value="R" resultMap="replyResultMap" /> -->
+		</discriminator>
+	</resultMap>
+
+	<resultMap id="projectResultMap"
+		type="www.tp.com.proj.model.ProjectVO" extends="replyResultMap">
+		<result property="projTitle" column="proj_title" />
+		<result property="boardId" column="board_id" />
+		<result property="likes" column="likes" />
+		<result property="areaA" column="area_1" />
+		<result property="areaB" column="area_2" />
+		<result property="creation" column="creation" />
+		<association property="projAddInfo" resultMap="projectAddInfoResultMap"/>
+	</resultMap>
+	
+	<resultMap id="projectAddInfoResultMap"
+	type="www.tp.com.proj.model.ProjAddInfo">
+		<result property="projInfoId" column="proj_info_id" />
+		<result property="introdution" column="introdution" />
+		<result property="motivation" column="motivation" />
+		<result property="motto" column="motto" />
+		<result property="plan" column="plan" />
+		<result property="creation" column="creation" />
+		<result property="deadline" column="deadline" />
+</resultMap>
+
+	<select id="findByIdMember" resultMap="projectResultMap">
+		select p.* from tbl_project p, tbl_map_proj_party m, tbl_party tp
+		where p.hier_id = m.proj_id
+  		and tp.party_id = m.party_id
+  		and m.party_type = 'M'
+  		and m.join_state = 'join'
+  		and m.party_id = #{partyId}
+	</select>
+	
+	<select id="findByIdOwner" resultMap="projectResultMap">
+		select p.* from tbl_project p, tbl_map_proj_party m, tbl_party tp
+		where p.hier_id = m.proj_id
+ 		 and tp.party_id = m.party_id
+ 		 and m.party_type = 'O'
+ 		 and m.party_id = #{partyId}
+	</select>
+	
+	
+	<select id="findId" resultType="string">
+	   <![CDATA[
+	         select #{parent.hierId} || #{reply.hidDeli} || to62(seq_project.currval) from dual
+	     ]]>
+	</select>
+	
+<!-- SELECT 부분 -->	
+	<!-- 모든 프로젝트 리스트 검색 -->
+	<select id="findProjAll" resultMap="projectResultMap">
+      select p.*, u.party_id 
+      	from tbl_project p left outer join 
+     		 tbl_party u on p.writer_id = u.party_id
+      where obj_type = 'P'
+</select>
+
+   <!-- hid 값으로 프로젝트 부가정보 포함해서 검색 -->
+   <select id="findAllByPage" resultMap="projectResultMap">
+        select * from (   
+         select rownum rn, tp.* from(
+            select * from tbl_party u, tbl_project p
+            where obj_type='P'
+             and p.writer_id = u.party_id
+            order by hier_id desc, creation desc) tp
+       <![CDATA[
+         where rownum <= #{pageNum} * #{amount})
+         
+        where rn > (#{pageNum}-1) * #{amount}
+           ]]>
+   </select>
+	
+	<!-- 프로젝트 상세정보 검색 -->
+	<select id="findAddInfoProject" resultMap="projectResultMap">
+      select tp.*, tpa.* from tbl_project tp
+ 		left outer join tbl_project_addinfo tpa
+      	on tp.hier_id = tpa.proj_info_id
+        where tpa.proj_info_id = #{hid}
+   </select>
+	
+	
+	<!-- hid 값으로 댓글 검색 -->
+   <select id="findReplyById" resultMap="replyResultMap">
+      select p.*, u.*
+      	from tbl_project p left outer join 
+     		 tbl_party u on p.writer_id = u.party_id
+      where p.hier_id like #{reply.hierId} || #{reply.hidDeli} || '%'  
+      and p.hier_id not like #{reply.hierId}  || #{reply.hidDeli} || '%' || #{reply.hidDeli} || '%'
+      and p.obj_type = 'R'
+      order by creation desc
+   </select>
+	
+	<select id="findreplyByIdPage"  resultMap="projectResultMap">
+			select hier_id,content,writer_id from(
+    		select rownum rn,hier_id,content,writer_id from tbl_project
+        	where obj_type = 'R'
+       		and hier_id like #{reply.hierId} || #{reply.hidDeli} || '%'
+       	<![CDATA[
+       		and rownum <= #{cri.pageNum} * #{cri.amount})
+        	where rn > (#{cri.pageNum}-1) * #{cri.amount}
+		]]>
+	</select>
+
+	<!-- 통합검색 -->
+	<select id="searchByTag" resultMap="projectResultMap">
+	      select m.* from (     
+          select ROWNUM rn, p.*, u.* from tbl_project p, tbl_party u
+	      	where hier_id in(
+	      		select hier_id from tbl_map_proj_tag mt, tbl_hash_tag ht, tbl_project tp
+	      			where mt.tag_id = ht.tag_id
+	        		and tp.hier_id = mt.proj_id
+	        		and ht.tag_name = #{searchTag}
+                    and u.party_id = p.writer_id 
+                   ) 
+             <if test="searchTag.isEmpty()"> 
+             or hier_id in(
+	      		select distinct hier_id from tbl_map_proj_tag mt, tbl_hash_tag ht, tbl_project tp
+	      			where mt.tag_id = ht.tag_id
+	       			and tp.hier_id = mt.proj_id
+	       			and ht.tag_name = #{area}
+                    and u.party_id = p.writer_id)
+             </if>        
+                   and  p.obj_type = 'P'
+                 order by p.hier_id desc, creation desc) m
+           <![CDATA[
+	        where rownum <= #{cri.pageNum} * #{cri.amount}
+	        and rn > (#{cri.pageNum}-1) * #{cri.amount}
+	        ]]>
+	</select>
+	
+	<select id="searchByTagLike" resultMap="projectResultMap">
+	 select m.* from (     
+          select ROWNUM rn, p.*, u.* from tbl_project p, tbl_party u
+	      	where hier_id in(
+	      		select hier_id from tbl_map_proj_tag mt, tbl_hash_tag ht, tbl_project tp
+	      			where mt.tag_id = ht.tag_id
+	        		and tp.hier_id = mt.proj_id
+	        		and ht.tag_name = #{searchTag}
+                    and u.party_id = p.writer_id 
+                   ) 
+             <if test="searchTag.isEmpty()"> 
+             or hier_id in(
+	      		select distinct hier_id from tbl_map_proj_tag mt, tbl_hash_tag ht, tbl_project tp
+	      			where mt.tag_id = ht.tag_id
+	       			and tp.hier_id = mt.proj_id
+	       			and ht.tag_name = #{area}
+                    and u.party_id = p.writer_id)
+             </if>        
+                   and  p.obj_type = 'P'
+                 order by p.likes desc, p.hier_id desc, creation desc) m
+           <![CDATA[
+	        where rownum <= #{cri.pageNum} * #{cri.amount}
+	        and rn > (#{cri.pageNum}-1) * #{cri.amount}
+	        ]]>
+	</select>
+	
+	<!-- 검색결과 프로젝트 개수 카운팅 -->
+	<select id="countTotalProj" resultType="int">
+	  	select count(*) from tbl_project p
+		where hier_id in(
+		select hier_id from tbl_map_proj_tag mt, tbl_hash_tag ht, tbl_project tp
+		where mt.tag_id = ht.tag_id
+  		and tp.hier_id = mt.proj_id
+  		<if test="!searchTag.isEmpty()">
+  			and ht.tag_name = #{searchTag}
+  		</if>
+  		)
+	</select>
+<!-- INSERT 부분 -->
+	<!-- 댓글 정보 생성 -->
+	<insert id="insertReply">
+		<selectKey keyProperty="reply.hierId" order="BEFORE" resultType="string">
+          <![CDATA[
+            select #{parent.hierId} || #{reply.hidDeli} || to62(seq_project.nextval) from dual
+      	  ]]>
+		</selectKey>
+		insert into tbl_project (hier_id, obj_type, content, writer_id)
+		values(#{reply.hierId}, #{reply.clsType}, #{reply.content},
+		#{reply.writerId.partyId})
+	</insert>
+
+	<!-- 프로젝트 기본(필수)정보 생성 -->
+	<insert id="insertProject">
+		<selectKey keyProperty="project.hierId" order="BEFORE" resultType="string">
+          <![CDATA[
+            select to62(seq_project.nextval) from dual
+      	  ]]>
+		</selectKey>
+		insert into tbl_project (hier_id, obj_type, content, writer_id,
+		board_id, proj_title, area_1, area_2)
+		values(#{project.hierId}, #{project.clsType},
+		#{project.content}, #{project.writerId.partyId}, #{project.boardId},
+		#{project.projTitle}, #{project.areaA}, #{project.areaB})
+	</insert>
+
+<!-- , views, likes -->   
+	<!-- 프로젝트 부가 정보 생성 -->
+	<insert id="insertProjectAddInfo">
+		<selectKey keyProperty="addinfoId" order="BEFORE" resultType="string">
+          <![CDATA[
+            select max(hier_id) from tbl_project
+      	  ]]>
+		</selectKey>
+		insert into tbl_project_addinfo (proj_info_id, introdution, motivation,motto, plan)
+		values(#{addinfoId}, #{project.projAddInfo.introdution}, #{project.projAddInfo.motivation}, 
+			#{project.projAddInfo.motto}, #{project.projAddInfo.plan})
+	</insert>
+	
+	 <insert id="insertProjOwnerType">
+		insert into 
+		tbl_map_proj_party(proj_id, party_id, party_type, join_state)
+		values(#{project.hierId}, #{project.writerId.partyId}, #{project.writerId.OwnerType}, #{project.stateJoin})
+	</insert>
+
+	<insert id="insertProjMemberType">
+		insert into 
+		tbl_map_proj_party(proj_id, party_id, party_type, join_state)
+		values(#{project.hierId}, #{project.writerId.partyId}, #{project.writerId.MemberType}, #{project.stateWait})
+	</insert>
+	
+<!-- DELETE 부분 -->
+	<!-- 프로젝트 삭제 -->
+	<delete id="deleteProject">
+		delete from tbl_project 
+		 where hier_id like #{reply.hierId} || '%' 
+	</delete>
+	<delete id="deleteAddinfo">
+		delete from tbl_project_addinfo
+		 where proj_info_id = #{reply.hierId}
+	</delete>
+
+	<!-- 프로젝트 파티 매퍼 테이블 프로젝트 삭제 -->
+	<delete id="deleteMapPartyProj">
+		delete from tbl_map_proj_party
+		 where proj_id = #{reply.hierId}
+	</delete>
+	
+	<!-- 댓글만 삭제 -->
+	<update id="deleteReply">
+	update tbl_project 
+		 set writer_id = '!DeletedReply',
+             content = '[삭제된 메세지입니다.]'
+		 where hier_id = #{reply.hierId}
+          and obj_type = 'R'
+	</update><!-- 작성자 이름을 !DeletedReply로 바꾸는걸로 Update -->
+	
+		<!-- wait상태에서 취소된 사람 매퍼에서 삭제 -->
+	<delete id="deleteWaitState">
+		delete from tbl_map_proj_party
+		where proj_id = #{hierId}
+		  and party_id = #{partyId}
+		  and join_state ='wait'
+	</delete>
+
+<!-- UPDATE 부분 -->
+	
+	<!-- 프로젝트 추가 정보 수정 -->
+	<update id ="updateAddInfoProject">
+		update tbl_project_addinfo
+		   set introdution =  #{project.projAddInfo.introdution},
+		       motivation = #{project.projAddInfo.motivation},
+		       skill = #{project.projAddInfo.skill},
+		       area = #{project.projAddInfo.area},
+		       motto = #{project.projAddInfo.motto},
+		       plan = #{project.projAddInfo.plan},
+		       deadline = #{project.projAddInfo.deadline}
+		 where proj_info_id = #{project.hierId}
+	</update>
+	
+	<!-- 댓글 수정 -->
+	<update id ="updateReply">
+		update tbl_project
+		   set content = #{reply.content}
+		 where hier_id = #{reply.hierId}
+             and obj_type = #{reply.clsType}
+	</update>
+
+	<!-- 프로젝트 기본정보 수정 -->
+	<update id ="updateProject">
+		update tbl_project
+			set	proj_title = #{project.projTitle},
+		    	content = #{project.content},
+		    	area_1 = #{project.areaA},
+		    	area_2 = #{project.areaB}
+		 where hier_id = #{project.hierId}
+	</update>
+	
+		<!-- 회원 대기 상태에서 가입확정 update -->
+ 	<update id="updateJoinState">
+		update tbl_map_proj_party tm 
+		set join_state = #{project.stateJoin}
+		where party_id = #{party.partyId}
+        and tm.proj_id = #{project.hierId}
+        and tm.join_state = #{project.stateWait}
+	</update>
+	
+	<update id = "updateLikes">
+		update tbl_project p
+		set likes = likes+1
+		where hier_id = #{project.hierId}
+	</update>
+	<!-- 대기회원 삭제 -->
+   <delete id="deleteProjWaitMember">
+      delete from tbl_map_proj_party
+       where party_id = #{project.partyId}
+        and proj_id = #{project.hierId}
+   </delete>
+	
+</mapper>	

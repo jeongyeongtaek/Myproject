@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="www.tp.com.chat.persistence.ChatMapper">
+	
+	<!-- 메시지 리절트 맵 -->
+	<resultMap id="chatMessageResultMap"
+		type="www.tp.com.chat.model.ChatMessageVO">
+		
+		<result property="message" column="message"/>
+		<result property="messageSendTime" column="message_send_time" />
+		<result property="chatRoomId" column="chatroom_id" />
+		<result property="partyId" column="party_id" />
+	</resultMap>
+	
+	<!-- 채팅방 리절트 맵 -->
+	<resultMap id="chatRoomResultMap"
+		type="www.tp.com.chat.model.ChatRoomVO">
+		
+		<result property="chatRoomId" column="chatroom_id" />
+		<result property="chatRoomName" column="chatroom_name" />
+		<association property="lastMessage" resultMap="chatMessageResultMap"/>
+	</resultMap>
+	
+	
+	
+	<!-- select -->
+
+	<!-- 채팅방 리스트 -->
+	<select id="getChatRoomList" resultMap="chatRoomResultMap">
+		select chatroom_id, chatroom_name, party_id, message, message_send_time from (
+			select cr.chatroom_id, cr.chatroom_name, cm.party_id, cm.message, cm.message_send_time, row_number()
+			over(partition by cr.chatroom_id order by cm.message_send_time desc) as row_idx
+			from tbl_chat_message cm, tbl_chatroom cr
+			where cm.chatroom_id = cr.chatroom_id
+			and cm.chatroom_id in (
+		        select chatroom_id from tbl_chatroom_participant
+		        where party_id = #{partyId }
+			    )
+	        )
+		where row_idx=1
+	</select>
+
+	
+	<!-- 메시지 리스트 -->
+	<select id="getMessageList" resultMap="chatMessageResultMap">
+		select * from tbl_chat_message
+		where chatroom_id = #{chatRoomId}
+		order by message_send_time
+	</select>
+	
+	
+	
+	<!-- insert -->
+	
+	<!-- 채팅방 만들기 -->
+	<insert id="createChatRoom">
+		<selectKey keyProperty="chatRoomId" order="BEFORE" resultType="string">
+		<![CDATA[
+			select to62(seq_project.nextval) from dual
+		]]>
+		</selectKey>
+		insert into tbl_chatroom (chatroom_id, chatroom_name)
+		values (#{chatRoomId}, #{chatRoomName})
+	</insert>
+	
+	<!-- 채팅방과 참여자 관계 추가하기 -->
+	<insert id="joinChatRoom">
+		insert into tbl_chatroom_participant (chatroom_id, party_id)
+		values (#{chatRoomId}, #{partyId})
+	</insert>
+	
+	<!-- 메시지 보내기 -->
+	<insert id="sendMessage">
+		insert into tbl_chat_message (chatroom_id, party_id, message, message_send_time)
+		values (#{chatRoomId}, #{partyId}, #{message}, #{messageSendTime})
+	</insert>
+	
+	
+	
+	<!-- update -->
+	
+	<!-- 채팅방 이름 바꾸기 -->
+	<insert id="changeChatRoomName">
+		update tbl_chatroom set chatroom_name = #{chatRoomName}
+		where chatroom_id = #{chatRoomId}
+	</insert>
+	
+	
+	
+	<!-- delete -->
+	
+	<!-- 채팅방 삭제하기 -->
+	<delete id="deleteChatRoom">
+		delete from tbl_chatroom
+    	where chatroom_id = #{chatRoomId}
+	</delete>
+	
+	<!-- 채팅방과 참여자 관계 삭제하기 -->
+	<delete id="outChatRoom">
+		delete from tbl_chatroom_participant
+    	where chatroom_id = #{chatRoomId}
+    	and party_id = #{partyId}
+	</delete>
+	
+	<!-- 채팅 모두 삭제하기 -->
+	<delete id="deleteAllMessage">
+		delete from tbl_chat_message
+    	where chatroom_id = #{chatRoomId}
+	</delete>
+	
+</mapper>

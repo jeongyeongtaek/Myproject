@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="www.tp.com.party.persistence.PartyMapper">
+
+	<resultMap id="partyResultMap"
+		type="www.tp.com.party.model.PartyVO">
+		
+		<id property="partyId" column="party_id"/>
+		<result property="partyPw" column="party_pw" />
+		<result property="name" column="name" />
+		<result property="roleName" column="role_name" />
+		<result property="projTitle" column="proj_title" />
+		<result property="hierId" column="hier_id" />
+	</resultMap>
+<!-- party class의 변수와 party table의 컬럼을 1:1대응 -->
+	<resultMap id="partyAddInfoResultMap"
+		type="www.tp.com.party.model.PartyAddinfoVO">
+		<constructor>
+			<idArg column="party_info_id" javaType="string" />
+		</constructor>
+		<result property="email" column="email" />
+		<result property="phoneNum" column="phone_num" />
+		<association property="party" resultMap="partyResultMap" />
+	</resultMap>
+<!-- party class의 변수와 party table의 컬럼을 1:1대응 -->
+
+<!-- <sql id="paging"> -->
+<!-- 		  select party_id,party_pw,name,role_name from ( -->
+<!-- 		select rownum rn , party_id,party_pw,name,role_name  from tbl_party -->
+<!-- 		where  rownum <= 30) -->
+<!-- 		where rn > 20 -->
+<!-- </sql> -->
+<!-- 		select p.*,a.* from tbl_party -->
+<!-- 		p, tbl_party_addinfo a -->
+<!-- 		where a.party_info_id=p.party_id -->
+
+	<select id="findByWaiter" resultMap = "partyResultMap">
+		select p.*,tp.* from tbl_map_proj_party m,tbl_project p,tbl_party tp
+ 		where m.proj_id = p.hier_id
+ 		  and m.party_id = tp.party_id
+ 		and p.hier_id in (select pp.hier_id from tbl_project pp, tbl_map_proj_party mm, tbl_party tp
+		where pp.hier_id = mm.proj_id
+		  and tp.party_id = mm.party_id
+		  and mm.party_type = 'O'
+		  and mm.party_id = #{partyId})
+		  and m.join_state = 'wait'
+ 		 and p.obj_type='P'
+	</select>
+
+  <select id="idCheck" resultType="int">
+		SELECT COUNT(*) FROM tbl_party
+			WHERE party_id = #{partyId}
+	</select>
+  
+	<select id="selectList" resultMap="partyAddInfoResultMap">
+	<![CDATA[
+		select p.*,a.* from tbl_party p, tbl_party_addinfo a
+		where p.party_id = a.party_info_id
+ ]]>
+	</select>
+<!-- 
+	 DB내에 있는 모든 회원의 정보 + 부가정보를 모두 보여주기 위해 join문 이용
+	  아마 일반사용자보다 운영자 페이지에서 사용할듯
+ -->
+
+	<select id="selectById" resultMap="partyAddInfoResultMap">
+		select p.*,a.* from tbl_party
+		p, tbl_party_addinfo a
+		where a.party_info_id=p.party_id
+		and p.party_id = #{partyId}
+	</select>
+<!-- 
+	 회원 검색시 회원의 정보 + 부가정보를 모두 보여주기 위해 join문 이용
+	  아마 일반사용자보다 운영자 페이지에서 사용할듯
+ -->
+
+	<insert id="insertParty">
+		insert into
+		tbl_party(party_id,party_pw,name)
+		values(#{party.partyId},#{party.partyPw},#{party.name})
+	</insert>
+	<insert id="insertPartyAddinfo">
+		insert into
+		tbl_party_addinfo(party_info_id,email,phone_num)
+		values(#{partyInfoId},#{email},#{phoneNum})
+	</insert>
+
+<!-- 
+	 회원가입시 회원의 기본정보 + 부가정보를 같이 insert
+	 xml내에서는 두개지만 실제 사용할때는 한 동작내에서 두개를 같이 실행해야함
+ -->
+ 
+
+
+	<delete id="deleteParty">
+		delete from tbl_party
+		where party_id=#{party.partyId}
+	</delete>
+	<delete id="deletePartyAddinfo">
+		delete from tbl_party_addinfo
+		where
+		party_info_id=#{partyInfoId}
+	</delete>
+<!-- 
+	 회원탈퇴시 회원의 기본정보 + 부가정보를 같이 delete
+	 xml내에서는 두개지만 실제 사용할때는 한 동작내에서 두개를 같이 실행해야함
+ -->
+ 
+	<update id="updateParty">
+		update tbl_party
+		set
+			party_pw = #{party.partyPw},
+			name = #{party.name}
+		where
+			party_id= #{party.partyId}
+	</update>
+	<update id="updatePartyAddinfo">
+		update tbl_party_addinfo
+		set
+			email = #{email},
+			phone_num = #{phoneNum}
+		where
+			party_info_id=#{partyInfoId}
+	</update>
+<!-- 
+	 회원수정시 회원의 기본정보 + 부가정보를 같이 update
+	 xml내에서는 두개지만 실제 사용할때는 한 동작내에서 두개를 같이 실행해야함
+ -->
+ 
+ 
+</mapper>
