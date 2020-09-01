@@ -106,7 +106,7 @@ Number.prototype.zf = function(len){return this.toString().zf(len);};
 		}
 	});
 	
-	let sock = new SockJS("http://192.168.43.42:8080/websocket");
+	let sock = new SockJS("http:// :8080/websocket");
 	sock.onmessage = onMessage;
 	sock.onclose = onClose;
 	

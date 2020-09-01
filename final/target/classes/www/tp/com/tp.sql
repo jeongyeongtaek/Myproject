@@ -1,114 +1,112 @@
-drop sequence seq_project;
+drop sequence seq_post;
 drop sequence seq_hash_tag;
 
-drop table tbl_role;
-drop table tbl_board;
-drop table tbl_project;
-drop table tbl_project_addinfo;
-drop table tbl_party;
-drop table tbl_party_addinfo;
-drop table tbl_map_proj_party;
-drop table tbl_hash_tag;
+drop table tbl_map_post_tag;
 drop table tbl_map_party_tag;
-drop table tbl_map_proj_tag;
-drop table tbl_hash_area;
-drop table tbl_map_area_tag;
+drop table tbl_hash_tag;
+drop table tbl_post;
+drop table tbl_contact_point;
+drop table tbl_party;
+drop table tbl_board;
+drop table tbl_role;
+drop table tbl_contact_point_type;
 
-create sequence seq_project;
+drop table tbl_chatroom;
+drop table tbl_chat_message;
+drop table tbl_chatroom_participant;
+
+
+create table tbl_role(
+	name		varchar2(50) primary key,
+	prior_name	varchar2(50)
+);
+
+--id, name
+create table tbl_board(
+	id 			number(10) primary key, 
+	name		varchar2(200)
+);
+insert into tbl_board values(1, 'ÀÚÀ¯°Ô½ÃÆÇ');
+
+--	login_id, pwd, name
+create table tbl_party(
+	login_id	varchar2(200) primary key,
+	pwd			varchar2(2000),
+	name		varchar2(200),
+	role_name	varchar2(50)
+);
+
+create table tbl_contact_point_type (
+	type_name   varchar2(200)
+	-- È­¸é ±¸¼º ¼ø¼­, caption Á¤º¸
+);
+
+--	login_id, type_name, contact_point
+create table tbl_contact_point(
+	login_id	varchar2(200),
+	type_name   varchar2(200),
+	contact_point varchar2(200),
+	primary key(login_id, type_name)
+);
+ALTER TABLE tbl_contact_point
+	ADD CONSTRAINTS fk_party_from_cp FOREIGN KEY (login_id)
+	REFERENCES tbl_party(login_id);
+
+create sequence seq_post;
+
+--	hierarchy_id, obj_type, content, writer_id, board_id, title
+create table tbl_post(
+	hierarchy_id varchar2(2000) primary key,	-- composite pattern delimeter '_' ¼º´Éµµ º¸ÀåµÊ 
+	obj_type	char NOT NULL,	-- °Ô½Ã±Û : P, ´ñ±Û : R
+	--´ñ±Û¿¡¼­ Á¤ÀÇÇÏ´Â Ç×¸ñÀº °Ô½Ã±Û¿¡¼­µµ »ó¼Ó °ü°è¿¡ ÀÇÇÏ¿© È°¿ëµÊ
+	content		varchar2(2000),
+	writer_id	varchar2(200),
+	--°Ô½Ã±ÛÀÏ¶§ Ãß°¡µÇ´Â Á¤º¸
+	board_id	number(10),
+	title		varchar2(200)
+); 
+
 create sequence seq_hash_tag;
 
--- ê¶Œí•œ í…Œì´ë¸”
-create table tbl_role(
-   name         varchar2(50) primary key,
-   prior_name      varchar2(50)
-);
-
--- í”„ë¡œì íŠ¸(í¬ìŠ¤íŠ¸,ë¦¬í”Œ) í…Œì´ë¸”
-create table tbl_project (
-    hier_id     varchar2(2000) primary key,
-   obj_type   char NOT NULL, -- p(í”„ë¡œì íŠ¸, í¬ìŠ¤íŠ¸), r(ë¦¬í”Œ)
-    content      varchar2(2000),
-   writer_id   varchar2(200),
-    -- postë§Œ ê°€ì§€ê³  ìˆìŒ
-   board_id   number(10),
-   proj_title   varchar2(200),
-   likes   number(20) default 0
-);
-
--- proj_info_id, introdution, motivation, motto, plan, creation, deadline, views, likes   
--- í”„ë¡œì íŠ¸ ë¶€ê°€ì •ë³´
-create table tbl_project_addinfo (
-    proj_info_id varchar2(2000) primary key,
-    introdution varchar2(2000),
-    motivation varchar2(2000),
-    motto       varchar2(2000),
-    plan        varchar2(2000),
-    creation  date  default sysdate,
-    deadline    date
-);
-
--- íŒŒí‹° í…Œì´ë¸”
-create table tbl_party (
-    party_id      varchar2(200) primary key,
-    party_pw      varchar2(200),
-    name        varchar2(200),
-    role_name  varchar2(200) default 'ROLE_USER',-- ê¶Œí•œ
-    enabled number(1) default 1
-);
-
--- íŒŒí‹° ë¶€ê°€ì •ë³´ í…Œì´ë¸”
-create table tbl_party_addinfo (
-    party_info_id  varchar2(2000) primary key,
-    email       varchar2(200),
-    phone_num   varchar2(200)
-);
-
--- í”„ë¡œì íŠ¸-íŒŒí‹° ê´€ê³„ í…Œì´ë¸”
-create table tbl_map_proj_party (
-    proj_id     varchar2(2000),
-    party_id      varchar2(2000),
-    party_type    char not null, -- o_owner, m_member
-    join_state  varchar2(20) not null, --ì°¸ì—¬í™•ì •ìƒíƒœ : join  ëŒ€ê¸°ìƒíƒœ : wait
-    primary key (proj_id, party_id)
-);
-
--- ê²Œì‹œíŒ í…Œì´ë¸”
-create table tbl_board(
-   id          number(10) primary key, 
-   name      varchar2(200)
-);
-
--- í•´ì‹œíƒœê·¸ í…Œì´ë¸”
+--id, name, descript
 create table tbl_hash_tag(
-   tag_id         number(10) primary key,
-   tag_name      varchar2(200)
+	id			number(10)	 primary key,
+	name		varchar2(200),
+	descript	varchar2(2000)
 );
--- í•´ì‹œíƒœê·¸ í…Œì´ë¸” ì¸ë±ì‹±
-create index idx_hash_tag_name on tbl_hash_tag(tag_name);
+create index idx_hash_tag_name on tbl_hash_tag(name);
 
--- í”„ë¡œì íŠ¸-íƒœê·¸ ê´€ê³„ í…Œì´ë¸”
-create table tbl_map_proj_tag (
-   proj_id      varchar2(200),
-   tag_id      number(10),
-   primary key(proj_id, tag_id)
-);
-
--- íŒŒí‹°-íƒœê·¸ ê´€ê³„ í…Œì´ë¸”
-create table tbl_map_party_tag (
-    party_id      varchar2(200),
-   tag_id     number(10),
-   primary key(party_id, tag_id)
+--login_id, tag_id
+create table tbl_map_party_tag(
+	login_id	varchar2(200),
+	tag_id		number(10),
+	primary key(login_id, tag_id)
 );
 
--- í•´ì‹œíƒœê·¸ ì§€ì—­ í…Œì´ë¸”
-create table tbl_hash_area (
-    tag_id        number(10),
-    tag_area   varchar2(200)
+--post_id, tag_id
+create table tbl_map_post_tag(
+	post_id		varchar2(2000),
+	tag_id		number(10),
+	primary key(tag_id, post_id)
 );
 
--- Proj ì§€ì—­ê³¼ í•´ì‹œíƒœê·¸ ì§€ì—­ ë§¤í•‘ í…Œì´ë¸”
-create table tbl_map_area_tag (
-    proj_id        varchar2(200),
-    tag_id       number(10)
+create table tbl_chatroom (
+    chatroom_id     varchar2(200),
+    chatroom_name     varchar2(200)
 );
-commit;
+
+create table tbl_chat_message (
+    chatroom_id     varchar2(200),
+    party_id        varchar2(200),
+    message         varchar2(2000),
+    message_send_time date
+);
+
+create index idx_message_send_time on tbl_chat_message(message_send_time);
+  
+create table tbl_chatroom_participant (
+    chatroom_id     varchar2(200),
+    party_id        varchar2(200),
+    primary key (chatroom_id, party_id)
+);
+
